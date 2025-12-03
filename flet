@@ -76,7 +76,7 @@ def main(page: ft.Page):
     # Montando o Layout
     layout = ft.Column(
         controls=[
-            ft.Text("MONITORAMENTO DE VIBRAÇÃO", size=12, color="grey"),
+            ft.Text("TESTE FLET", size=12, color="grey"),
             mostrador,          # O Velocímetro
             texto_velocidade,   # O Texto Digital
             ft.Container(grafico, padding=20), # A Senoide
