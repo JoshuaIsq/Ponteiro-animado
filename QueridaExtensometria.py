@@ -164,7 +164,7 @@ with dpg.window(tag="Primary Window"):
     with dpg.group(horizontal=True):
         dpg.add_input_int(default_value=10, width=150, tag='input_passabaixa', min_value=1)
 
-        dpg.add_button(label="Frequencia de corte", callback=callback_botao_passabaixa)
+        dpg.add_button(label="Frequencia de corte passa baixa", callback=callback_botao_passabaixa)
 
     #------ 3.2.2 --- plotagem gráfico ------# 
     
