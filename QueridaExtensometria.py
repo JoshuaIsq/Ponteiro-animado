@@ -37,10 +37,8 @@ def load_data_converte(filename, calibration):
         df_sorted = df_data.sort_values(by='timestamp').reset_index(drop=True)
         start_time = df_sorted['timestamp'].iloc[0]
         eixo_x_segundos = (df_sorted['timestamp'] - start_time).dt.total_seconds().tolist()
-        eixo_x_segundos = eixo_x_segundos[::50]
         sensores_df = df_sorted.iloc[:, 1:].fillna(0) * calibration
-        sensores_df = sensores_df.iloc[::50, :]
-
+        
         return eixo_x_segundos, sensores_df
         #Ao final a função me retorna o eixo X que mostra quanto tempo passou
         #E sensores_df me respresenta meus sensores ja recebendo o valor de calibração dados
@@ -90,52 +88,67 @@ def filter_high_pass(df, freq_corte, freq_rate, order):
         df_copia[col] = signal.filtfilt(b, a, df_copia[col])
     return df_copia.round(4)
 
-# ---------- Criação de botões ---------- #
-def callback_botao_high_pass():
-    valor_digi = dpg.get_value("input_highpass")
-    df_filtro_high = filter_high_pass(df_sensores, valor_digi, freq_rate=20000, order=2)
-    colunas = df_filtro_high.columns
+# 3. ---------- Criação de botões ---------- #
+
+# 3.1 --------- calculando taxa de plotagem ----- #
+
+def processar_e_plotar(sender, app_data, user_data):
+    df_trabalho = df_sensores.copy()
+    
+    if len(x_data) > 1:
+        # Pega o tempo total (Fim - Início)
+        tempo_total = x_data[-1] - x_data[0]
+
+        # calcula a média
+        if tempo_total > 0:
+            # Taxa = Quantos pontos existem / Quanto tempo durou
+            taxa_real = len(x_data) / tempo_total
+        else:
+            taxa_real = 1.0 # Evita divisão por zero se o arquivo tiver tempo zerado
+    else:
+        taxa_real = 1.0
+
+    # --- 3.2 Adicionando filtros um após o outro ---
+    
+    # Passo A: Offset
+    n_offset = dpg.get_value("input_offset")
+    if n_offset > 0:
+        df_trabalho = adjust_offset(df_trabalho, n_offset)
+
+    # Passo B: Média Móvel
+    janela = dpg.get_value("input_janela_mm")
+    if janela > 1:
+        df_trabalho = media_movel(df_trabalho, janela)
+
+    # Passo C: Passa Baixa
+    corte_low = dpg.get_value("input_passabaixa")
+    if corte_low > 0 and corte_low < (taxa_real / 2):
+        df_trabalho = filter_low_pass(df_trabalho, corte_low, taxa_real, order=2)
+
+    # Passo D: Passa Alta
+    corte_high = dpg.get_value("input_highpass")
+    if corte_high > 0 and corte_high < (taxa_real / 2):
+        df_trabalho = filter_high_pass(df_trabalho, corte_high, freq_rate=taxa_real, order=2)
+
+    # 3.2 ------ PLOTAGEM ---------
+    dpg.delete_item("Eixo Y", children_only=True)
+    
+    colunas = df_trabalho.columns
     for i in range(min(18, len(colunas))):
         col_name = colunas[i]
-        y_novo = df_filtro_high[col_name].tolist()
-        dpg.set_value(f"serie_canal_{i}", [x_data, y_novo])
+        y_vals = df_trabalho[col_name].tolist()
+        dpg.add_line_series(x_data, y_vals, parent="Eixo Y", label=f"Canal {col_name}")
 
-def callback_botao_passabaixa():
-    valor_digi = dpg.get_value("input_passabaixa") #indica o valor que vou colocar no meu input
-    df_filtrado = filter_low_pass(df_sensores, valor_digi, sample_rate=25000, order=2)
-    colunas = df_filtrado.columns
-    for i in range(min(18, len(colunas))):
-        col_name = colunas[i]
-        y_novo = df_filtrado[col_name].tolist()
-        dpg.set_value(f"serie_canal_{i}", [x_data, y_novo])
-
-def callback_botao_filtro():
-    valor_janela = dpg.get_value("input_janela_mm") 
-    df_filtrado = media_movel(df_sensores, valor_janela)
-    colunas = df_filtrado.columns
-    for i in range(min(18, len(colunas))):
-        col_name = colunas[i]
-        y_novo = df_filtrado[col_name].tolist()
-        dpg.set_value(f"serie_canal_{i}", [x_data, y_novo])
-
-
-def callback_botao_offset():
-    n_linhas = dpg.get_value("input_offset")
-    df_offset = adjust_offset(df_sensores, n_linhas)
-    colunas = df_offset.columns
-    for i in range(min(18, len(colunas))):
-        col_name = colunas[i]
-        y_novo = df_offset[col_name].tolist()
-        dpg.set_value(f"serie_canal_{i}", [x_data, y_novo])
 
 def callback_zomm(sender, app_data):
     x_min, x_max = app_data[0], app_data[1]
     y_min, y_max = app_data[2], app_data[3]
-    dpg.set_axis_limits("Eixo x", x_min, x_max)
-    dpg.set_axis_limits("Eixo y", y_min, y_max)
+    dpg.set_axis_limits("Eixo X", x_min, x_max)
+    dpg.set_axis_limits("Eixo Y", y_min, y_max)
 
 
 x_data, df_sensores = load_data_converte("LOG_1.txt", 0.00003375)
+df_visualizacao = df_sensores.copy()
 
 
 
@@ -160,7 +173,7 @@ with dpg.window(tag="Primary Window"):
         dpg.add_input_int(default_value=10, width=150, tag="input_janela_mm")
         
         # O botão que chama a função que criamos acima
-        dpg.add_button(label="Aplicar Média Móvel", callback=callback_botao_filtro)
+        dpg.add_button(label="Aplicar Média Móvel", callback=processar_e_plotar)
 
 
     dpg.add_separator()
@@ -172,27 +185,28 @@ with dpg.window(tag="Primary Window"):
         dpg.add_input_int(default_value=10, width=150, tag="input_offset", min_value=1)
         
         # O Botão que chama a função de offset
-        dpg.add_button(label="Aplicar Offset", callback=callback_botao_offset)
+        dpg.add_button(label="Aplicar Offset", callback=processar_e_plotar)
 
     dpg.add_separator()
 
     dpg.add_text("Frequecia de corte")
 
     with dpg.group(horizontal=True):
-        dpg.add_input_int(default_value=10, width=150, tag='input_passabaixa', min_value=1)
+        dpg.add_input_float(default_value=10, width=150, tag='input_passabaixa', min_value=0.01)
 
-        dpg.add_button(label="Frequencia de corte passa baixa", callback=callback_botao_passabaixa)
+        dpg.add_button(label="Frequencia de corte passa baixa", callback=processar_e_plotar)
 
     dpg.add_separator()
 
     dpg.add_text("Frequência corte")
 
     with dpg.group(horizontal=True):
-        dpg.add_input_int(default_value=10, width=150, tag="input_highpass", min_value=1)
+        dpg.add_input_float(default_value=10, width=150, tag="input_highpass", min_value=0.01)
 
-        dpg.add_button(label="Frequencia corte passa alta", callback=callback_botao_high_pass)
+        dpg.add_button(label="Frequencia corte passa alta", callback=processar_e_plotar)
 
     dpg.add_separator()
+
     #------ 3.2.2 --- plotagem gráfico ------# 
     
     with dpg.plot(label="Sensores - Tensão (MPa)", height=-1, width=-1, query=True, callback=callback_zomm): #no plot usa a fução query para ativar a seleção de mouse, o callback retorna a função
@@ -200,28 +214,10 @@ with dpg.window(tag="Primary Window"):
         xaxis = dpg.add_plot_axis(dpg.mvXAxis, label="Tempo (s)", tag="Eixo X")
         yaxis = dpg.add_plot_axis(dpg.mvYAxis, label="Tensão (MPa)", tag="Eixo Y")
         
-        if len(x_data) > 0:
-            
-            colunas_disponiveis = df_sensores.columns
-            
-            # Vamos plotar os primeiros 5 canais encontrados
-            for i in range(min(18, len(colunas_disponiveis))):
-                col_name = colunas_disponiveis[i]
-                y_sensor = df_sensores[col_name].tolist()
-                
-                # Adiciona a linha ao gráfico
-                # O label será "Canal 7", "Canal 8" baseado na lógica original (+7)
-                dpg.add_line_series(x_data, y_sensor, parent=yaxis, label=f"Canal {7+i:02d}", tag=f"serie_canal_{i}")
-                
-            # Ajuste de Zoom automático
-            dpg.fit_axis_data(yaxis)
-            dpg.fit_axis_data(xaxis)
-            
-        else:
-            dpg.add_text("Erro ao carregar dados.")
 
 #dpg.bind_item_theme("Primary Window", white_color)
 
+processar_e_plotar(None, None, None)
 dpg.create_viewport(title='Analise Grafica', width=1000, height=600)
 dpg.setup_dearpygui()
 dpg.show_viewport()
