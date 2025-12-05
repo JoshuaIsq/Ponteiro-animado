@@ -79,9 +79,26 @@ def filter_low_pass(df, cut_freq, sample_rate, order):
         df_copia[col] = signal.filtfilt(b, a, df_copia[col])
     return df_copia.round(4)
 
+#2.4 ------- Filtro Passa Alta ------- #
 
+def filter_high_pass(df, freq_corte, freq_rate, order):
+    df_copia = df.copy()
+    nyquisfreq = 0.5 * freq_rate
+    filter_high_pass = freq_corte/nyquisfreq
+    b, a = signal.butter(order, filter_high_pass, btype="high")
+    for col in df_copia.columns:
+        df_copia[col] = signal.filtfilt(b, a, df_copia[col])
+    return df_copia.round(4)
 
-# ---------- Criação de botões ----------
+# ---------- Criação de botões ---------- #
+def callback_botao_high_pass():
+    valor_digi = dpg.get_value("input_highpass")
+    df_filtro_high = filter_high_pass(df_sensores, valor_digi, freq_rate=20000, order=2)
+    colunas = df_filtro_high.columns
+    for i in range(min(18, len(colunas))):
+        col_name = colunas[i]
+        y_novo = df_filtro_high[col_name].tolist()
+        dpg.set_value(f"serie_canal_{i}", [x_data, y_novo])
 
 def callback_botao_passabaixa():
     valor_digi = dpg.get_value("input_passabaixa") #indica o valor que vou colocar no meu input
@@ -114,8 +131,8 @@ def callback_botao_offset():
 def callback_zomm(sender, app_data):
     x_min, x_max = app_data[0], app_data[1]
     y_min, y_max = app_data[2], app_data[3]
-    dpg.set_axis_limits("meu_eixo_x", x_min, x_max)
-    dpg.set_axis_limits("meu_eixo_y", y_min, y_max)
+    dpg.set_axis_limits("Eixo x", x_min, x_max)
+    dpg.set_axis_limits("Eixo y", y_min, y_max)
 
 
 x_data, df_sensores = load_data_converte("LOG_1.txt", 0.00003375)
@@ -166,6 +183,16 @@ with dpg.window(tag="Primary Window"):
 
         dpg.add_button(label="Frequencia de corte passa baixa", callback=callback_botao_passabaixa)
 
+    dpg.add_separator()
+
+    dpg.add_text("Frequência corte")
+
+    with dpg.group(horizontal=True):
+        dpg.add_input_int(default_value=10, width=150, tag="input_highpass", min_value=1)
+
+        dpg.add_button(label="Frequencia corte passa alta", callback=callback_botao_high_pass)
+
+    dpg.add_separator()
     #------ 3.2.2 --- plotagem gráfico ------# 
     
     with dpg.plot(label="Sensores - Tensão (MPa)", height=-1, width=-1, query=True, callback=callback_zomm): #no plot usa a fução query para ativar a seleção de mouse, o callback retorna a função
