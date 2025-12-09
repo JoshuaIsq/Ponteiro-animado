@@ -130,7 +130,7 @@ def processar_e_plotar(sender, app_data, user_data):
     if corte_high > 0 and corte_high < (taxa_real / 2):
         df_trabalho = filter_high_pass(df_trabalho, corte_high, freq_rate=taxa_real, order=2)
 
-    # 3.2 ------ PLOTAGEM ---------
+    # 3.3 ------ PLOTAGEM ---------
     dpg.delete_item("Eixo Y", children_only=True)
     
     colunas = df_trabalho.columns
@@ -139,7 +139,7 @@ def processar_e_plotar(sender, app_data, user_data):
         y_vals = df_trabalho[col_name].tolist()
         dpg.add_line_series(x_data, y_vals, parent="Eixo Y", label=f"Canal {col_name}")
 
-
+    # 3.4 ------- Criando o zoom ------ #
 def callback_zomm(sender, app_data):
     x_min, x_max = app_data[0], app_data[1]
     y_min, y_max = app_data[2], app_data[3]
@@ -149,6 +149,9 @@ def callback_zomm(sender, app_data):
 
 x_data, df_sensores = load_data_converte("LOG_1.txt", 0.00003375)
 df_visualizacao = df_sensores.copy()
+
+checkbox_tags = {} # Dicionário para guardar as tags dos checkboxes
+colunas_disponiveis = df_sensores.columns.tolist() # Lista com os nomes (7, 8, 9...)
 
 
 
@@ -171,7 +174,6 @@ with dpg.window(tag="Primary Window"):
     with dpg.group(horizontal=True):
         # Onde você digita o valor da média
         dpg.add_input_int(default_value=10, width=150, tag="input_janela_mm")
-        
         # O botão que chama a função que criamos acima
         dpg.add_button(label="Aplicar Média Móvel", callback=processar_e_plotar)
 
@@ -181,10 +183,7 @@ with dpg.window(tag="Primary Window"):
     dpg.add_text("Controle de Offset (Zerar):")
     
     with dpg.group(horizontal=True):
-        # Input para definir quantas linhas usar (Tag importante!)
         dpg.add_input_int(default_value=10, width=150, tag="input_offset", min_value=1)
-        
-        # O Botão que chama a função de offset
         dpg.add_button(label="Aplicar Offset", callback=processar_e_plotar)
 
     dpg.add_separator()
@@ -193,7 +192,6 @@ with dpg.window(tag="Primary Window"):
 
     with dpg.group(horizontal=True):
         dpg.add_input_float(default_value=10, width=150, tag='input_passabaixa', min_value=0.01)
-
         dpg.add_button(label="Frequencia de corte passa baixa", callback=processar_e_plotar)
 
     dpg.add_separator()
@@ -202,12 +200,15 @@ with dpg.window(tag="Primary Window"):
 
     with dpg.group(horizontal=True):
         dpg.add_input_float(default_value=10, width=150, tag="input_highpass", min_value=0.01)
-
         dpg.add_button(label="Frequencia corte passa alta", callback=processar_e_plotar)
 
     dpg.add_separator()
 
-    #------ 3.2.2 --- plotagem gráfico ------# 
+    with dpg.group(horizontal=False):
+        with dpg.child_window(height=1, width=150):
+            dpg.add_text("Canais: ")
+
+    #------ 4.2 --- plotagem gráfico ------# 
     
     with dpg.plot(label="Sensores - Tensão (MPa)", height=-1, width=-1, query=True, callback=callback_zomm): #no plot usa a fução query para ativar a seleção de mouse, o callback retorna a função
         dpg.add_plot_legend()
