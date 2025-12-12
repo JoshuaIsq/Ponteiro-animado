@@ -40,41 +40,50 @@ with dpg.window(tag="Primary Window"):
 
     with dpg.group(horizontal=True):
 
-        with dpg.group(horizontal=True):
-            # Onde você digita o valor da média
-            dpg.add_input_int(default_value=0, width=90, tag="input_janela_mm")
-            # O botão que chama a função que criamos acima
-            dpg.add_button(label="Aplicar Média Móvel", callback=processar_e_plotar, )
 
+        with dpg.group(horizontal=True):
+            with dpg.group(horizontal=False):
+                dpg.add_text("Janela Média Móvel:")
+                dpg.add_input_int(default_value=0, width=90, tag="input_janela_mm")
+                dpg.add_spacer(height=20)
+                dpg.add_button(label="Aplicar Média Móvel", callback=processar_e_plotar, )
 
         dpg.add_spacer(width=20)
 
-        #dpg.add_text("Controle de Offset (Zerar):")
-        
         with dpg.group(horizontal=True):
-            dpg.add_input_int(default_value=0, width=90, tag="input_offset", min_value=0)
-            dpg.add_button(label="Aplicar Offset", callback=processar_e_plotar)
+            with dpg.group(horizontal=False):
+                dpg.add_text("Ajuste de Offset:")
+                dpg.add_input_int(default_value=0, width=90, tag="input_offset", min_value=0)
+                dpg.add_spacer(height=20)
+                dpg.add_button(label="Aplicar Offset", callback=processar_e_plotar)
 
         dpg.add_spacer(width=20)
 
-        #dpg.add_text("Frequecia de corte passa baixa")
+        with dpg.group(horizontal=True):
+            with dpg.group(horizontal=False):
+                dpg.add_text("Frequência de corte passa baixa:")
+                dpg.add_input_float(default_value=0.00, width=90, tag='input_passabaixa', min_value=0.00, label="Freq. Corte (Hz)")
+                dpg.add_input_int(default_value=2, width=90, tag="input_order_low", min_value=1, min_clamped=True, label="Ordem")
+                dpg.add_button(label="Aplicar passa baixa e ordem", callback=processar_e_plotar)
+                
+        dpg.add_spacer(width=20)
 
         with dpg.group(horizontal=True):
-            dpg.add_input_float(default_value=0.00, width=90, tag='input_passabaixa', min_value=0.00)
-            #dpg.add_input_int(default_value=0, width=90, tag="input_order", min_value=1, label="Ordem")
-            dpg.add_button(label="Aplicar passa baixa", callback=processar_e_plotar)
-            #dpg.add_button(label="Adicionar Ordem", callback=processar_e_plotar)
+            with dpg.group(horizontal=False):
+                dpg.add_text("Frequência de corte passa alta:")
+                dpg.add_input_float(default_value=0.00, width=90, tag='input_highpass', min_value=0.00, label="Freq. Corte (Hz)")
+                dpg.add_input_int(default_value=2, width=90, tag="input_order_high", min_value=1, min_clamped=True, label="Ordem")  
+                dpg.add_button(label="Aplicar passa alta e ordem", callback=processar_e_plotar)
 
         dpg.add_spacer(width=20)
 
-
         with dpg.group(horizontal=True):
-            dpg.add_input_float(default_value=0.00, width=90, tag="input_highpass", min_value=0.00)
-            dpg.add_button(label="Aplicar passa alta", callback=processar_e_plotar)
+            with dpg.group(horizontal=False):
+                dpg.add_text("Remoção de Outliers:")
+                dpg.add_input_int(default_value=0, width=90, tag="input_outliers", min_value=0)
+                dpg.add_spacer(height=20)
+                dpg.add_button(label="Remover Outliers", callback=processar_e_plotar)
 
-        with dpg.group(horizontal=True):
-            dpg.add_input_int(default_value=0, width=90, tag="input_outliers", min_value=0)
-            dpg.add_button(label="Remover Outliers", callback=processar_e_plotar)
 
         #dpg.add_separator()
 

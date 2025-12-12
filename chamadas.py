@@ -45,12 +45,14 @@ def processar_e_plotar(sender, app_data, user_data):
         df_trabalho = media_movel(df_trabalho, janela)
 
     corte_low = dpg.get_value("input_passabaixa")
-    if corte_low > 0 and corte_low < (taxa_real / 2):
-        df_trabalho = filter_low_pass(df_trabalho, corte_low, sample_rate=taxa_real, order=2)   
+    ordem_low = dpg.get_value("input_order_low")
+    if corte_low > 0 and ordem_low > 0 and corte_low < (taxa_real / 2):
+        df_trabalho = filter_low_pass(df_trabalho, corte_low=corte_low, sample_rate=taxa_real, order=ordem_low)   
 
     corte_high = dpg.get_value("input_highpass")
-    if corte_high > 0 and corte_high < (taxa_real / 2):
-        df_trabalho = filter_high_pass(df_trabalho, corte_high, freq_rate=taxa_real, order=2)
+    ordem_high = dpg.get_value("input_order_high")
+    if ordem_high > 0 and corte_high > 0 and corte_high < (taxa_real / 2):
+        df_trabalho = filter_high_pass(df_trabalho, corte_high=corte_high, freq_rate=taxa_real, order=ordem_high)
 
     remove_out = dpg.get_value("input_outliers")
     if remove_out > 0:
