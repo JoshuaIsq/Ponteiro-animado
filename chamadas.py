@@ -1,4 +1,4 @@
-from Import_And_Math import load_data_converte
+from Import_And_Math import load_data, calibration_factor
 from Import_And_Math import media_movel, adjust_offset, filter_low_pass
 from Import_And_Math import filter_high_pass, indentify_outliers, remove_outliers, actual_tendency
 from Import_And_Math import DataStorage
@@ -14,10 +14,25 @@ from scipy import signal
     callback_zomm: Função de callback para zoom no gráfico.
     select_archive: Função para selecionar o arquivo de dados."""
 
+def callback_calibration(sender, app_data, user_data): #Essa função recalcula o fator de calibração (inicialmente 1) quando o usuario clicar no botão
+    if DataStorage.df_dados_brutos.empty:
+        print("Nenhum dado bruto disponível para calibração.")
+        return
+    val_calibração = dpg.get_value("input_calibration_factor")
+    calibration_factor(val_calibração)
+    processar_e_plotar(None, None, None)
+
 def processar_e_plotar(sender, app_data, user_data):
 
     if DataStorage.df_sensores.empty: 
-        return
+        if not DataStorage.df_dados_brutos.empty:
+            try:
+                val_calibração = dpg.get_value("input_calibration_factor")
+            except:
+                val_calibração = 1.0
+            calibration_factor(val_calibração)
+        else:
+            return
 
     df_trabalho = DataStorage.df_sensores.copy()
 
@@ -33,9 +48,8 @@ def processar_e_plotar(sender, app_data, user_data):
 
     print(f"Processando... Taxa: {taxa_real:.2f} Hz")
 
+# ------ Processamento dos dados de filtragem---------  
 
-    # ---  Adicionando filtros um após o outro ---#
-    
     n_offset = dpg.get_value("input_offset")
     if n_offset > 0:
         df_trabalho = adjust_offset(df_trabalho, n_offset)
@@ -58,7 +72,7 @@ def processar_e_plotar(sender, app_data, user_data):
     if remove_out > 0:
         df_trabalho = remove_outliers(df_trabalho, window=remove_out, thresh=3, verbose=False)
 
-     # 3.3 ------ PLOTAGEM ---------
+     # ------ PLOTAGEM ---------
     dpg.delete_item("eixo_y", children_only=True)
 
     for col_name in DataStorage.colunas_disponiveis:
@@ -73,7 +87,7 @@ def processar_e_plotar(sender, app_data, user_data):
 
 
 
-    # 3.4 ------- Criando o zoom ------ #
+    #  ------- Criando o zoom ------ #
 def callback_zomm(sender, app_data):
     x_min, x_max = app_data[0], app_data[1]
     y_min, y_max = app_data[2], app_data[3]
@@ -83,43 +97,50 @@ def callback_zomm(sender, app_data):
 # --------- Seleção de arquivo ----------- #
 
 def select_archive(sender, app_data):
-    #global x_data, df_sensores, colunas_disponiveis
+
+    file_to_import = []
+    if 'app_data' in app_data and app_data['app_data']:
+        file_to_import = list(app_data['app_data'].values())
+    elif 'file_path_name' in app_data:
+         file_to_import = [app_data['file_path_name']]
+    if not file_to_import:
+        return 
     
-    caminho = app_data['file_path_name']
+    raw_files = load_data(file_to_import) #Carregando dadosa brutos
+
+    if raw_files:
+        try:
+            val_calibração = dpg.get_value("input_calibration_factor")
+        except:
+            val_calibração = 1.0
+        calibration_factor(val_calibração)
     
-    # 1. Carrega os novos dados
-    DataStorage.x_data, DataStorage.df_sensores = load_data_converte(caminho, 0.00003375)
-    
-    if len(DataStorage.x_data) > 0:
         DataStorage.colunas_disponiveis = DataStorage.df_sensores.columns.tolist()
-        
-        # 2. Reconstrói a lista de Checkboxes
-        dpg.delete_item("grupo_lista_canais", children_only=True)
+        dpg.delete_item("grupo_lista_canais", children_only=True) # 2. Reconstrói a lista de Checkboxes
         DataStorage.checkbox_tags.clear()
         
         for col in DataStorage.colunas_disponiveis:
             tag_chk = f"chk_{col}"
             DataStorage.checkbox_tags[col] = tag_chk
-            # Marca os 3 primeiros por padrão
-            estado = True if col in DataStorage.colunas_disponiveis[:3] else False
+            estado = True if col in DataStorage.colunas_disponiveis[:3] else False # Marca os 3 primeiros por padrão
             dpg.add_checkbox(label=f"Ext {col}", tag=tag_chk, default_value=estado, callback=processar_e_plotar, parent="grupo_lista_canais")
-        
+
         processar_e_plotar(None, None, None)
         dpg.fit_axis_data("eixo_x")
         dpg.fit_axis_data("eixo_y")
         dpg.set_axis_limits("eixo_y",-40, 40)
         
 
-def open_tendency(sender, app_data, user_data):
-    """
-    Abre janela e plota a RETA DE TENDÊNCIA GLOBAL.
-    """
+def open_tendency(sender, app_data, user_data): #Existe uma possibilidade de eu mover isso para a parte da interface gráfica
+    """Abre uma segunda janela com o gráfico da tendência dos dados atuais.
+    Plota a regressão linear dos dados selecionados.
+    Mostrando a tendÇencia de estabilidade ou drift dos extensômetros."""
+
     tag_win = "win_tendencia"
     
-    # 1. Definindo cor
-    with dpg.theme() as tema_branco:
+    with dpg.theme() as tema_branco: 
         with dpg.theme_component(dpg.mvAll):
-            # Fundo Branco (Usando Core, que é compatível com todas as versões)
+            # Fundo Branco 
             dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (255, 255, 255), category=dpg.mvThemeCat_Core)
             dpg.add_theme_color(dpg.mvThemeCol_ChildBg, (255, 255, 255), category=dpg.mvThemeCat_Core)
             dpg.add_theme_color(dpg.mvThemeCol_PopupBg, (255, 255, 255), category=dpg.mvThemeCat_Core)

@@ -1,4 +1,4 @@
-from chamadas import processar_e_plotar, callback_zomm, select_archive, open_tendency
+from chamadas import processar_e_plotar, callback_zomm, select_archive, open_tendency, callback_calibration
 from Import_And_Math import DataStorage
 from Import_And_Math import actual_tendency
 import dearpygui.dearpygui as dpg
@@ -39,6 +39,10 @@ with dpg.window(tag="Primary Window"):
     dpg.add_text("VISUALIZADOR DE EXTENSOMETRIA", color=(0, 0, 0),)
     dpg.add_spacer(width=50)
     dpg.add_button(label="Selecionar aquivo: ", callback=lambda: dpg.show_item("file_dialog_id"))
+    dpg.add_spacer(width=20)
+    dpg.add_text("Fator de calibração:")
+    dpg.add_input_float(default_value=0.00003375, width=120, tag="input_calibracao", step=0.000001, format="%.8f", callback=callback_calibration, on_enter=True)
+    dpg.add_button(label="Aplicar K", callback=callback_calibration)
 
     # ---- Botões -----
 
